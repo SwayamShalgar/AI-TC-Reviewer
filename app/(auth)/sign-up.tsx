@@ -7,21 +7,21 @@ import { Link, router } from "expo-router";
 import OAuth from "@/components/OAuth";
 import { useSignUp } from "@clerk/clerk-expo";
 import Modal from "react-native-modal"; // ✅ Correct import
+import { fetchAPI } from "@/lib/fetch";
 
 const SignUp = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
+    name: "",
+    email: "",
+    password: "",
   });
-
   const [verification, setVerification] = useState({
-    state: 'default', // default, pending, success, failed
-    error: '',
-    code: '',
+    state: "default",
+    error: "",
+    code: "",
   });
 
   const onSignUpPress = async () => {
@@ -32,12 +32,14 @@ const SignUp = () => {
         emailAddress: form.email,
         password: form.password,
       });
-
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-
-      setVerification({ ...verification, state: 'pending' });
-    } catch (err) {
-      Alert.alert('Error', err.errors[0].longMessage);
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setVerification({
+        ...verification,
+        state: "pending",
+      });
+    } catch (err: any) {
+      console.log(JSON.stringify(err, null, 2));
+      Alert.alert("Error", err.errors[0].longMessage);
     }
   };
 
@@ -45,12 +47,21 @@ const SignUp = () => {
     if (!isLoaded) return;
 
     try {
-      const signUpAttempt = await signUp.attemptEmailAddressVerification({
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
         code: verification.code,
       });
 
-      if (signUpAttempt.status === 'complete') {
-        await setActive({ session: signUpAttempt.createdSessionId });
+      if (completeSignUp.status === "complete") {
+        await fetchAPI("/(api)/user", {
+          method: "POST",
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            clerkId: completeSignUp.createdUserId,
+          }),
+        });
+
+        await setActive({ session: completeSignUp.createdSessionId });
         setVerification({ ...verification, state: 'success' });
       } else {
         setVerification({ ...verification, state: 'failed', error: 'Verification Failed.' });
