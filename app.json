@@ -12,6 +12,10 @@
       "resizeMode":"contain",
       "backgroundColor":"#ffffff"
     },
+    "extra": {
+      "CLOUDINARY_UPLOAD_PRESET": "tc-reviewer",
+      "CLOUDINARY_CLOUD_NAME": "TC-Reviewer"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
