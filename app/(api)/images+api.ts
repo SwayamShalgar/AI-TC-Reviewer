@@ -3,9 +3,9 @@ import { neon } from "@neondatabase/serverless";
 export async function POST(request: Request) {
   try {
     const sql = neon(`${process.env.DATABASE_URL}`);
-    const { name, email, clerkId } = await request.json();
+    const { clerkId, imageUrl } = await request.json();
 
-    if (!name || !email || !clerkId) {
+    if (!clerkId || !imageUrl) {
       return Response.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -13,15 +13,13 @@ export async function POST(request: Request) {
     }
 
     const response = await sql`
-      INSERT INTO users (
-        name, 
-        email, 
-        clerk_id
+      INSERT INTO images ( 
+        clerk_id,
+        image_url
       ) 
       VALUES (
-        ${name}, 
-        ${email},
-        ${clerkId}
+        ${clerkId},
+        ${imageUrl}
      );`;
 
     return new Response(JSON.stringify({ data: response }), {

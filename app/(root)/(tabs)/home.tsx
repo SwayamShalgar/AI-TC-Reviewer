@@ -5,7 +5,6 @@ import {
   Text,
   View,
   Image,
-  Button,
   Alert,
   ActivityIndicator,
 } from "react-native";
@@ -13,6 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import Constants from "expo-constants";
 import CustomButton from "@/components/CustomButton";
+import { fetchAPI } from "@/lib/fetch";
 
 const Home = () => {
   const { user } = useUser();
@@ -24,14 +24,37 @@ const Home = () => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
     });
-    
 
     if (!result.canceled) {
-      uploadToCloudinary(result.assets[0].uri);
+      const { success, url, error } = await uploadToCloudinary(result.assets[0].uri);
+
+      if (success && url && user?.id) {
+        setImageUrl(url);
+
+        try {
+          await fetchAPI("/(api)/images", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              clerkId: user.id,
+              imageUrl: url,
+            }),
+          });
+        } catch (err) {
+          console.error("Error saving image URL to DB:", err);
+          Alert.alert("Database Error", "Failed to save image URL.");
+        }
+      } else {
+        Alert.alert("Upload Failed", error || "Unknown error");
+      }
     }
   };
 
-  const uploadToCloudinary = async (uri: string) => {
+  const uploadToCloudinary = async (
+    uri: string
+  ): Promise<{ success: boolean; url?: string; error?: string }> => {
     try {
       setUploading(true);
 
@@ -55,13 +78,13 @@ const Home = () => {
       const data = await response.json();
 
       if (data.secure_url) {
-        setImageUrl(data.secure_url);
+        return { success: true, url: data.secure_url };
       } else {
-        Alert.alert("Upload failed", "Unable to get image URL");
+        return { success: false, error: "Unable to get image URL" };
       }
     } catch (error) {
       console.error("Cloudinary upload error:", error);
-      Alert.alert("Upload Error", "Something went wrong");
+      return { success: false, error: "Something went wrong during upload." };
     } finally {
       setUploading(false);
     }
@@ -85,15 +108,14 @@ const Home = () => {
 
         {imageUrl !== "" && (
           <Image
-          source={{ uri: imageUrl }}
-          style={{
-            width: "100%",
-            height: undefined,
-            aspectRatio: 1,
-            resizeMode: "contain",
-          }}
-        />
-        
+            source={{ uri: imageUrl }}
+            style={{
+              width: "100%",
+              height: undefined,
+              aspectRatio: 1,
+              resizeMode: "contain",
+            }}
+          />
         )}
       </SignedIn>
 
