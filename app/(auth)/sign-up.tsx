@@ -1,3 +1,4 @@
+// sign-up.tsx
 import { icons, images } from "@/constants";
 import { Alert, Image, ScrollView, Text, View } from "react-native";
 import InputField from "@/components/InputField";
@@ -26,7 +27,6 @@ const SignUp = () => {
 
   const onSignUpPress = async () => {
     if (!isLoaded) return;
-
     try {
       await signUp.create({
         emailAddress: form.email,
@@ -38,20 +38,23 @@ const SignUp = () => {
         state: "pending",
       });
     } catch (err: any) {
+      // See https://clerk.com/docs/custom-flows/error-handling
+      // for more info on error handling
       console.log(JSON.stringify(err, null, 2));
       Alert.alert("Error", err.errors[0].longMessage);
     }
   };
-
-  const onVerifyPress = async () => {
+  const onPressVerify = async () => {
     if (!isLoaded) return;
-
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code: verification.code,
       });
-
       if (completeSignUp.status === "complete") {
+        const nameParts = form.name.split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
         await fetchAPI("/(api)/user", {
           method: "POST",
           body: JSON.stringify({
@@ -60,17 +63,30 @@ const SignUp = () => {
             clerkId: completeSignUp.createdUserId,
           }),
         });
-
         await setActive({ session: completeSignUp.createdSessionId });
-        setVerification({ ...verification, state: 'success' });
+        setVerification({
+          ...verification,
+          state: "success",
+        });
+        // ✅ Pass firstName and lastName as route parameters
+        router.push({
+          pathname: '/(root)/(tabs)/profile',
+          params: { firstName: firstName, lastName: lastName },
+        });
       } else {
-        setVerification({ ...verification, state: 'failed', error: 'Verification Failed.' });
+        setVerification({
+          ...verification,
+          error: "Verification failed. Please try again.",
+          state: "failed",
+        });
       }
     } catch (err: any) {
+      // See https://clerk.com/docs/custom-flows/error-handling
+      // for more info on error handling
       setVerification({
         ...verification,
-        error: err.errors?.[0]?.longMessage || 'Something went wrong.',
-        state: 'failed',
+        error: err.errors[0].longMessage,
+        state: "failed",
       });
     }
   };
@@ -120,9 +136,9 @@ const SignUp = () => {
 
         {/* ✅ Verification Modal */}
         <Modal isVisible={verification.state === 'pending'}
-        onModalHide={() => {
-          if(verification.state === 'success') setShowSuccessModal(true);
-        }}
+          onModalHide={() => {
+            if(verification.state === 'success') setShowSuccessModal(true);
+          }}
         >
           <View className="bg-white px-7 py-9 rounded-2xl min-h-[300px]">
             <Text className="text-2xl font-bold mb-2">Verification</Text>
@@ -141,7 +157,7 @@ const SignUp = () => {
               <Text className="text-red-500 text-sm mt-1">{verification.error}</Text>
             )}
 
-            <CustomButton title="Verify Email" onPress={onVerifyPress} className="mt-5 bg-success-500" />
+            <CustomButton title="Verify Email" onPress={onPressVerify} className="mt-5 bg-success-500" />
           </View>
         </Modal>
 
@@ -155,8 +171,11 @@ const SignUp = () => {
             </Text>
             <CustomButton title="Go to Home" onPress={() => {
               setShowSuccessModal(false);
-              router.push('/(root)/(tabs)/home')
-              }} className="mt-5" />
+              // ✅ Navigate with parameters
+              router.push({
+                pathname: '/(root)/(tabs)/home',
+              });
+             }} className="mt-5" />
           </View>
         </Modal>
       </View>
